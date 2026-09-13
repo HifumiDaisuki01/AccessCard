@@ -1,0 +1,152 @@
+# ============================================================
+#  AccessCard 门禁系统 - 全局配置
+#  修改后执行 /acd reload 即可热重载（门数据在 doors.yml）
+# ============================================================
+
+# ---------- 全局默认值 ----------
+# 当某个门没有单独配置冷却/次数时，使用这里的值。
+# 在 doors.yml 里为单个门设置非 -1 的值即可覆盖。
+defaults:
+  # 默认个人冷却（秒）：同一个玩家开过门后，需等待多久才能再开
+  personal-cooldown: 0
+  # 默认全局冷却（秒）：任意玩家开门后，全服都要等多久
+  global-cooldown: 0
+  # 默认允许输错密码次数，达到后触发 attempts.cooldown 锁定
+  max-attempts: 5
+  # 默认输错达到上限后的个人锁定时间（秒）
+  # 说明：锁定结束后，尝试次数自动清零，玩家又获得完整的 max-attempts 次机会
+  attempt-cooldown: 180
+
+# ---------- 密码门 ----------
+password:
+  # 玩家点击密码门后，等待输入密码的超时时间（秒）
+  timeout: 30
+  # true = 输入密码时聊天内容不会发到公屏（强烈建议保持 true）
+  silent: true
+  # 是否允许输入 cancel / 取消 来放弃本次输入
+  allow-cancel: true
+
+# ---------- 门禁卡 ----------
+card:
+  # true = 刷卡成功后自动把卡名里的（剩余次数：N）减 1
+  consume: true
+  # 是否允许副手也参与检测（默认只查主手，避免歧义）
+  allow-offhand: false
+
+# ---------- 防连点 ----------
+anti-spam:
+  # 同一个玩家两次交互的最小间隔（毫秒），防止疯狂点按钮刷屏
+  interact-throttle-ms: 300
+
+# ============================================================
+#  提示文本
+#  颜色代码用 & 符号，例如 &6、&c、&l
+#  可用变量：{door} {player} {time} {left} {used} {max} {attempt} {input}
+# ============================================================
+messages:
+
+  no-permission: "&c你没有权限这么做。"
+  player-only: "&c该命令只能由玩家执行。"
+  player-not-found: "&c找不到在线玩家 &f{player}&c。"
+  door-not-found: "&c找不到门禁 &f{door}&c。"
+  unknown-subcommand: "&c未知子命令 &f{input}&c，输入 &f/acd help &c查看帮助。"
+
+  # ---------- 帮助 ----------
+  help:
+    - "&8&m                                                  "
+    - "&6&lAccessCard &7门禁系统 &8v1.0"
+    - "&e/acd create pw &f<名称> [密码] &8- &7创建密码门（不填密码则随机生成）"
+    - "&e/acd create card &f<名称> [卡名关键字] &8- &7创建门禁卡门"
+    - "&e/acd bind &f<名称> &8- &7看向一个按钮执行，将门绑定到该按钮"
+    - "&e/acd open &f<名称> [玩家] &8- &7强制开门（供第三方插件调用）"
+    - "&e/acd resetpw &f<名称> [新密码] &8- &7重置密码（不填则随机生成）"
+    - "&e/acd setpw &f<名称> <密码> &8- &7设置指定密码"
+    - "&e/acd power on|off &f<名称> [时长] &8- &7供/断电，时长如 300s / 5m / 1h"
+    - "&e/acd power mode &f<名称> <on|off> &8- &7切换该门是否启用电源系统"
+    - "&e/acd info &f<名称> &8- &7查看门禁详情"
+    - "&e/acd list &8- &7列出全部门禁"
+    - "&e/acd remove &f<名称> &8- &7删除门禁"
+    - "&e/acd reload &8- &7重载配置"
+    - "&e/acd selftest &8- &7插件自检（控制台执行）"
+    - "&8&m                                                  "
+
+  # ---------- 用法提示 ----------
+  usage:
+    create: "&c用法: /acd create <pw|card> <名称> [密码/关键字]"
+    bind: "&c用法: /acd bind <名称>  &7（看向要绑定的按钮）"
+    open: "&c用法: /acd open <名称> [玩家]"
+    resetpw: "&c用法: /acd resetpw <名称> [新密码]"
+    setpw: "&c用法: /acd setpw <名称> <密码>"
+    power: "&c用法: /acd power <on|off> <名称> [时长] / /acd power mode <名称> <on|off>"
+    remove: "&c用法: /acd remove <名称>"
+    info: "&c用法: /acd info <名称>"
+
+  # ---------- 创建 / 绑定 ----------
+  create:
+    bad-type: "&c类型只能是 &fpw &c或 &fcard&c，你输入的是 &f{type}&c。"
+    bad-id: "&c名称 &f{id} &c不合法（仅支持中英文、数字、下划线、短横线，最长32字符）。"
+    exists: "&c门禁 &f{door} &c已存在。"
+    success-pw: "&a已创建密码门 &f{door}&a，当前密码：&e{pw}"
+    success-card: "&a已创建门禁卡门 &f{door}&a，卡名关键字：&e{keyword}"
+    next-tip: "&7接下来看向一个按钮，输入 &f/acd bind {door} &7完成绑定。"
+  bind:
+    no-target: "&c请看向一个按钮（6格以内）再执行该命令。"
+    not-button: "&c你瞄准的方块 &f{block} &c不是按钮/拉杆，无法绑定。"
+    occupied: "&c这个按钮已经被门禁 &f{door} &c占用了。"
+    success: "&a已将门禁 &f{door} &a绑定到按钮 &f{world} {x},{y},{z}&a。"
+
+  # ---------- 开门 ----------
+  door:
+    opened: "&a门禁 &f{door} &a已开启。"
+  open:
+    forced: "&7已为 &f{player} &7强制开启门禁 &f{door}&7。"
+    forced-console: "&7已强制开启门禁 &f{door}&7（未指定玩家）。"
+
+  # ---------- 密码 ----------
+  password:
+    prompt: "&e门禁 &f{door}&e：请在聊天框输入密码（&7输入 cancel 取消&e）。"
+    wrong: "&c密码错误！&7剩余尝试次数：&f{left}&7（第 {used}/{max} 次）"
+    cancelled: "&7已取消输入。"
+    timeout: "&7输入超时，已退出开门流程。"
+
+  # ---------- 尝试次数 ----------
+  attempt:
+    locked: "&c尝试次数过多，该门禁已被锁定 &f{time}&c。"
+    cooldown: "&c该门禁正在锁定中，剩余 &f{time}&c。"
+
+  # ---------- 冷却 ----------
+  cooldown:
+    personal: "&c你还需要等待 &f{time} &c才能再次开启这个门禁。"
+    global: "&c该门禁正在全局冷却中，剩余 &f{time}&c。"
+
+  # ---------- 门禁卡 ----------
+  card:
+    no-item: "&c你需要手持门禁卡才能开门。"
+    wrong-item: "&c你手中的物品不是这张门禁卡。"
+    parse-failed: "&c无法识别门禁卡上的剩余次数，请联系管理检查卡名格式。"
+    broken: "&c这张门禁卡已损坏（剩余次数为 0）。"
+
+  # ---------- 供电 ----------
+  power:
+    no-power: "&c该门禁当前没有供电，请先恢复供电。"
+    on: "&a已为门禁 &f{door} &a供电 &f{time}&a。"
+    off: "&7已切断门禁 &f{door} &7的供电。"
+    mode-on: "&a门禁 &f{door} &a已启用电源系统（默认断电，需 /acd power on 供电）。"
+    mode-off: "&7门禁 &f{door} &7已关闭电源系统（此后永久可用）。"
+    broadcast-on: "&e[电力] &f{door} &7恢复供电，有效时间 &f{time}&7。"
+    broadcast-off: "&e[电力] &f{door} &7电力中断。"
+
+  # ---------- 列表 / 删除 / 重载 ----------
+  list:
+    empty: "&7当前没有任何门禁。"
+    header: "&6门禁列表 &7（共 {count} 个）"
+    entry: "&8- &f{door} &7[{type}] &8{loc}"
+  remove:
+    success: "&a已删除门禁 &f{door}&a。"
+  reload:
+    success: "&a配置已重载，共加载 &f{count} &a个门禁。"
+
+  # ---------- 重置密码 ----------
+  resetpw:
+    success: "&a已重置门禁 &f{door} &a的密码为：&e{pw}"
+    not-password: "&c门禁 &f{door} &c是门禁卡门，没有密码。"

@@ -1,0 +1,59 @@
+name: ${project.name}
+version: ${project.version}
+main: com.keran.accesscard.AccessCardPlugin
+api-version: '1.20'
+author: Keran
+description: 门禁系统 - 密码门 / 门禁卡门，支持冷却、供电与延迟指令链
+softdepend:
+  - PlaceholderAPI
+  - Multiverse-Core
+  - MultiWorld
+
+commands:
+  accesscard:
+    description: AccessCard 门禁系统主命令
+    usage: /acd help
+    aliases:
+      - acd
+      - accesscard
+
+permissions:
+  accesscard.admin:
+    description: 全部管理权限
+    default: op
+    children:
+      accesscard.create: true
+      accesscard.bind: true
+      accesscard.remove: true
+      accesscard.open: true
+      accesscard.resetpw: true
+      accesscard.power: true
+      accesscard.list: true
+      accesscard.reload: true
+  accesscard.create:
+    description: 创建门禁
+    default: op
+  accesscard.bind:
+    description: 绑定按钮
+    default: op
+  accesscard.remove:
+    description: 删除门禁
+    default: op
+  accesscard.open:
+    description: 远程开门
+    default: op
+  accesscard.resetpw:
+    description: 重置密码
+    default: op
+  accesscard.power:
+    description: 控制供电
+    default: op
+  accesscard.list:
+    description: 查看门禁列表
+    default: op
+  accesscard.reload:
+    description: 重载配置
+    default: op
+  accesscard.use:
+    description: 允许使用门禁（密码门输入密码 / 刷卡）
+    default: true
