@@ -2,7 +2,8 @@ name: ${project.name}
 version: ${project.version}
 main: com.keran.accesscard.AccessCardPlugin
 api-version: '1.20'
-author: Keran
+author: Keran Technology
+website: http://tech.keran.cc
 description: 门禁系统 - 密码门 / 门禁卡门，支持冷却、供电与延迟指令链
 softdepend:
   - PlaceholderAPI

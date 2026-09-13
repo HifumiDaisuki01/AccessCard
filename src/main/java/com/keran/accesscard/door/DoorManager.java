@@ -1,3 +1,11 @@
+/*
+ * AccessCard - Minecraft 门禁系统
+ * Keran Technology (c) 2026  http://tech.keran.cc
+ *
+ * 本文件为 AccessCard 插件源码的一部分。
+ * 版权归 Keran Technology 所有。
+ */
+
 package com.keran.accesscard.door;
 
 import com.keran.accesscard.AccessCardPlugin;

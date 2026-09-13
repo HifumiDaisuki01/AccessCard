@@ -1,3 +1,11 @@
+/*
+ * AccessCard - Minecraft 门禁系统
+ * Keran Technology (c) 2026  http://tech.keran.cc
+ *
+ * 本文件为 AccessCard 插件源码的一部分。
+ * 版权归 Keran Technology 所有。
+ */
+
 package com.keran.accesscard;
 
 import com.keran.accesscard.command.AcdCommand;
@@ -23,6 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class AccessCardPlugin extends JavaPlugin {
 
+    /** 版权标识，源码分发与运行期均保留 */
+    public static final String COPYRIGHT = "Keran Technology © 2026  http://tech.keran.cc";
+
     private DoorManager doorManager;
     private DoorService doorService;
     private Messages messages;
@@ -35,6 +46,8 @@ public class AccessCardPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        printBanner();
+
         saveDefaultConfig();
         this.messages = new Messages(this);
         this.commandChain = new CommandChain(this);
@@ -61,6 +74,23 @@ public class AccessCardPlugin extends JavaPlugin {
         }
 
         getLogger().info("AccessCard 已启动。");
+    }
+
+    /**
+     * 启动横幅。
+     */
+    private void printBanner() {
+        String v = getDescription().getVersion();
+        getLogger().info("");
+        getLogger().info("  █████╗  ██████╗ ██████╗███████╗███████╗███████╗");
+        getLogger().info("  ██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝");
+        getLogger().info("  ███████║██║     ██║     █████╗  ███████╗███████╗");
+        getLogger().info("  ██╔══██║██║     ██║     ██╔══╝  ╚════██║╚════██║");
+        getLogger().info("  ██║  ██║╚██████╗╚██████╗███████╗███████║███████║");
+        getLogger().info("  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝╚══════╝╚══════╝╚══════╝");
+        getLogger().info("  AccessCard v" + v + " - 门禁系统");
+        getLogger().info("  " + COPYRIGHT);
+        getLogger().info("");
     }
 
     @Override
