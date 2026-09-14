@@ -113,4 +113,39 @@ public class Messages {
     public long interactThrottleMs() {
         return cfg().getLong("anti-spam.interact-throttle-ms", 300L);
     }
+
+    /* ================= 随机密码（密室逃脱） ================= */
+
+    /** /acd randompw 未指定长度时使用的默认位数 */
+    public int randomPwDefaultLength() {
+        return cfg().getInt("random-password.default-length", 4);
+    }
+
+    /** 随机密码生成后是否全服广播（默认关闭，避免密室谜底泄露） */
+    public boolean randomPwBroadcast() {
+        return cfg().getBoolean("random-password.broadcast", false);
+    }
+
+    /* ================= 密码位占位符 ================= */
+
+    /**
+     * 是否允许占位符输出密码。
+     * <p>
+     * 默认 true。之所以允许，是因为密室逃脱玩法需要第三方插件按位分发线索；
+     * 若服务器不希望密码可被任意读取，可在 config 中关闭，
+     * 关闭后所有 {@code %acd_pwd_*%} 与 {@code %acd_pwdlen_*%} 一律返回空串。
+     */
+    public boolean passwordPlaceholderEnabled() {
+        return cfg().getBoolean("password-placeholder.enabled", true);
+    }
+
+    /**
+     * 占位符输出的掩码字符。为空表示输出真实数字。
+     * <p>
+     * 用于「只告诉玩家位数、不告诉具体数字」的场景，
+     * 例如填入 {@code -} 后 {@code %acd_pwd_金库_1%} 只会显示 {@code -}。
+     */
+    public String passwordPlaceholderMask() {
+        return cfg().getString("password-placeholder.mask", "");
+    }
 }

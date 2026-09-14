@@ -257,4 +257,55 @@ public class DoorService {
     public void broadcast(String message) {
         Bukkit.broadcastMessage(Messages.color(message));
     }
+
+    /* ================= 随机密码 API（供第三方插件调用） ================= */
+
+    /**
+     * 把门的密码重置为指定位数的随机数字，并返回新密码。
+     * <p>
+     * 供密室逃脱类第三方插件在每局开始时调用；调用方拿到返回值后
+     * 可自行决定把每一位线索分发给谁。
+     * 门不存在、是门禁卡门、或长度为非法值时返回 null。
+     *
+     * @param doorId 门代号
+     * @param length 位数（1-32，越界自动约束）
+     * @return 新密码，失败返回 null
+     */
+    public String randomizePassword(String doorId, int length) {
+        Door door = plugin.getDoorManager().get(doorId);
+        if (door == null || door.isCard()) return null;
+        String pw = com.keran.accesscard.util.PasswordGen.randomDigits(
+                com.keran.accesscard.util.PasswordGen.clampLength(length));
+        door.setPassword(pw);
+        plugin.getDoorManager().save();
+        return pw;
+    }
+
+    /**
+     * 读取门密码的第 index 位（从 1 开始），越界返回空串。
+     * 供第三方插件在代码里直接取值（不必绕占位符）。
+     */
+    public String passwordDigit(String doorId, int index) {
+        Door door = plugin.getDoorManager().get(doorId);
+        if (door == null || door.isCard()) return "";
+        return com.keran.accesscard.util.PasswordGen.digitAt(door.getPassword(), index);
+    }
+
+    /**
+     * 读取门密码的位数；门不存在或为门禁卡门时返回 0。
+     */
+    public int passwordLength(String doorId) {
+        Door door = plugin.getDoorManager().get(doorId);
+        if (door == null || door.isCard()) return 0;
+        return door.getPassword().length();
+    }
+
+    /**
+     * 读取门的完整密码；门不存在或为门禁卡门时返回空串。
+     */
+    public String passwordOf(String doorId) {
+        Door door = plugin.getDoorManager().get(doorId);
+        if (door == null || door.isCard()) return "";
+        return door.getPassword();
+    }
 }

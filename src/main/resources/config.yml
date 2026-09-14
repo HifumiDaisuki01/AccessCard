@@ -39,6 +39,31 @@ anti-spam:
   # 同一个玩家两次交互的最小间隔（毫秒），防止疯狂点按钮刷屏
   interact-throttle-ms: 300
 
+# ---------- 随机密码（密室逃脱玩法） ----------
+# /acd randompw <门名> [长度]
+# 把门的密码重置为「指定长度的纯数字随机密码」，供第三方插件在每局开始时调用。
+# 配合密码位占位符 %acd_pwd_<门名>_<位序>%，可把密码拆成多条线索分发。
+random-password:
+  # 不指定长度时使用的默认位数
+  default-length: 4
+  # 生成后是否全服广播新密码
+  # 密室逃脱请务必保持 false，否则谜底直接公屏泄露
+  broadcast: false
+
+# ---------- 密码位占位符 ----------
+# 让第三方插件能够读取某个门当前密码的任意一位。
+#   %acd_pwd_<门名>%        完整密码
+#   %acd_pwd_<门名>_<位序>% 第 N 位（N 从 1 开始）
+#   %acd_pwdlen_<门名>%     密码位数
+#   %acd_pwdlast_<门名>%    最后一位
+password-placeholder:
+  # 是否允许占位符输出密码。
+  # 关闭后上述占位符一律返回空串。
+  enabled: true
+  # 掩码字符：留空 = 输出真实数字；
+  # 填入字符（例如 -）后只输出该字符，等于「只告诉玩家有几位，不告诉是几」。
+  mask: ""
+
 # ============================================================
 #  提示文本
 #  颜色代码用 & 符号，例如 &6、&c、&l
@@ -49,18 +74,22 @@ messages:
   no-permission: "&c你没有权限这么做。"
   player-only: "&c该命令只能由玩家执行。"
   player-not-found: "&c找不到在线玩家 &f{player}&c。"
+  # 注意：这里必须用连字符而不是点号。
+  # messages 下已有嵌套的 door 段，若写成 door.not-found 会让 YAML
+  # 同时存在同名字面键与嵌套键，导致取值静默失败。
   door-not-found: "&c找不到门禁 &f{door}&c。"
   unknown-subcommand: "&c未知子命令 &f{input}&c，输入 &f/acd help &c查看帮助。"
 
   # ---------- 帮助 ----------
   help:
     - "&8&m                                                  "
-    - "&6&lAccessCard &7门禁系统 &8v1.0"
+    - "&6&lAccessCard &7门禁系统 &8v1.1"
     - "&e/acd create pw &f<名称> [密码] &8- &7创建密码门（不填密码则随机生成）"
     - "&e/acd create card &f<名称> [卡名关键字] &8- &7创建门禁卡门"
     - "&e/acd bind &f<名称> &8- &7看向一个按钮执行，将门绑定到该按钮"
     - "&e/acd open &f<名称> [玩家] &8- &7强制开门（供第三方插件调用）"
-    - "&e/acd resetpw &f<名称> [新密码] &8- &7重置密码（不填则随机生成）"
+    - "&e/acd resetpw &f<名称> [新密码] &8- &7重置密码（不填则随机生成字母数字）"
+    - "&e/acd randompw &f<名称> [长度] &8- &7重置为指定位数的纯数字随机密码"
     - "&e/acd setpw &f<名称> <密码> &8- &7设置指定密码"
     - "&e/acd power on|off &f<名称> [时长] &8- &7供/断电，时长如 300s / 5m / 1h"
     - "&e/acd power mode &f<名称> <on|off> &8- &7切换该门是否启用电源系统"
@@ -77,6 +106,7 @@ messages:
     bind: "&c用法: /acd bind <名称>  &7（看向要绑定的按钮）"
     open: "&c用法: /acd open <名称> [玩家]"
     resetpw: "&c用法: /acd resetpw <名称> [新密码]"
+    randompw: "&c用法: /acd randompw <名称> [长度]  &7（长度 1-32，默认 4）"
     setpw: "&c用法: /acd setpw <名称> <密码>"
     power: "&c用法: /acd power <on|off> <名称> [时长] / /acd power mode <名称> <on|off>"
     remove: "&c用法: /acd remove <名称>"
@@ -128,10 +158,12 @@ messages:
     broken: "&c这张门禁卡已损坏（剩余次数为 0）。"
 
   # ---------- 供电 ----------
+  # 注意：on / off 必须加引号。
+  # YAML 1.1 会把裸写的 on/off/yes/no 当成布尔值，导致这两条提示静默失效。
   power:
     no-power: "&c该门禁当前没有供电，请先恢复供电。"
-    on: "&a已为门禁 &f{door} &a供电 &f{time}&a。"
-    off: "&7已切断门禁 &f{door} &7的供电。"
+    "on": "&a已为门禁 &f{door} &a供电 &f{time}&a。"
+    "off": "&7已切断门禁 &f{door} &7的供电。"
     mode-on: "&a门禁 &f{door} &a已启用电源系统（默认断电，需 /acd power on 供电）。"
     mode-off: "&7门禁 &f{door} &7已关闭电源系统（此后永久可用）。"
     broadcast-on: "&e[电力] &f{door} &7恢复供电，有效时间 &f{time}&7。"
@@ -151,3 +183,10 @@ messages:
   resetpw:
     success: "&a已重置门禁 &f{door} &a的密码为：&e{pw}"
     not-password: "&c门禁 &f{door} &c是门禁卡门，没有密码。"
+
+  # ---------- 随机密码 ----------
+  randompw:
+    success: "&a已将门禁 &f{door} &a的密码重置为 &e{length} &a位数字：&e{pw}"
+    bad-length: "&c长度 &f{input} &c不合法，请输入 &f{min}-{max} &c之间的整数。"
+    clamped: "&7长度已自动调整为 &f{length}&7（允许范围 {min}-{max}）。"
+    broadcast: "&e[门禁] &f{door} &7的密码已更新为 &f{pw}&7。"

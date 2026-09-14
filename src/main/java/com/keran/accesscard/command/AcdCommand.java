@@ -13,6 +13,7 @@ import com.keran.accesscard.door.Door;
 import com.keran.accesscard.door.DoorManager;
 import com.keran.accesscard.door.DoorService;
 import com.keran.accesscard.listener.CardInteractListener;
+import com.keran.accesscard.util.PasswordGen;
 import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
@@ -63,6 +64,10 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
 
             case "resetpw":
                 return cmdResetPw(sender, args);
+
+            case "randompw":
+            case "random":
+                return cmdRandomPw(sender, args);
 
             case "power":
                 return cmdPower(sender, args);
@@ -158,7 +163,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         }
         Door door = plugin.getDoorManager().get(args[1]);
         if (door == null) {
-            plugin.getMessages().send(sender, "door.not-found", "{door}", args[1]);
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[1]);
             return true;
         }
 
@@ -211,7 +216,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         }
         Door door = plugin.getDoorManager().get(args[1]);
         if (door == null) {
-            plugin.getMessages().send(sender, "door.not-found", "{door}", args[1]);
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[1]);
             return true;
         }
 
@@ -254,7 +259,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         }
         Door door = plugin.getDoorManager().get(args[1]);
         if (door == null) {
-            plugin.getMessages().send(sender, "door.not-found", "{door}", args[1]);
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[1]);
             return true;
         }
         if (door.isCard()) {
@@ -269,6 +274,85 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /* ================= randompw ================= */
+
+    /**
+     * {@code /acd randompw <门名> [长度]}
+     * <p>
+     * 把指定门的密码重置为「指定长度的纯数字随机密码」，专供密室逃脱类玩法使用：
+     * 第三方插件可在每局开始时调用，把密码拆成若干位线索分发给玩家，
+     * 玩家集齐所有位后拼出完整密码才能开门。
+     * <p>
+     * 长度不填时默认 4 位。
+     */
+    private boolean cmdRandomPw(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("accesscard.resetpw")) {
+            plugin.getMessages().send(sender, "no-permission");
+            return true;
+        }
+        if (args.length < 2) {
+            plugin.getMessages().send(sender, "usage.randompw");
+            return true;
+        }
+        Door door = plugin.getDoorManager().get(args[1]);
+        if (door == null) {
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[1]);
+            return true;
+        }
+        if (door.isCard()) {
+            plugin.getMessages().send(sender, "resetpw.not-password", "{door}", args[1]);
+            return true;
+        }
+
+        int length = defaultRandomLength();
+        if (args.length >= 3) {
+            try {
+                length = Integer.parseInt(args[2].trim());
+            } catch (NumberFormatException e) {
+                plugin.getMessages().send(sender, "randompw.bad-length",
+                        "{input}", args[2],
+                        "{min}", String.valueOf(PasswordGen.MIN_LENGTH),
+                        "{max}", String.valueOf(PasswordGen.MAX_LENGTH));
+                return true;
+            }
+        }
+
+        int clamped = PasswordGen.clampLength(length);
+        String pw = PasswordGen.randomDigits(clamped);
+        door.setPassword(pw);
+        plugin.getDoorManager().save();
+
+        plugin.getMessages().send(sender, "randompw.success",
+                "{door}", door.getDisplayName(),
+                "{pw}", pw,
+                "{length}", String.valueOf(pw.length()));
+
+        // 若传入了越界长度，额外提示一次实际使用的长度
+        if (clamped != length) {
+            plugin.getMessages().send(sender, "randompw.clamped",
+                    "{min}", String.valueOf(PasswordGen.MIN_LENGTH),
+                    "{max}", String.valueOf(PasswordGen.MAX_LENGTH),
+                    "{length}", String.valueOf(clamped));
+        }
+
+        // 广播（可配置，默认关闭；密室场景通常不希望公屏暴露线索）
+        broadcastRandomPw(door, pw);
+        return true;
+    }
+
+    private void broadcastRandomPw(Door door, String pw) {
+        if (!plugin.getMessages().randomPwBroadcast()) return;
+        String tpl = plugin.getMessages().raw("randompw.broadcast");
+        if (tpl == null || tpl.isEmpty()) return;
+        String msg = tpl.replace("{door}", door.getDisplayName()).replace("{pw}", pw);
+        plugin.getServer().broadcastMessage(com.keran.accesscard.config.Messages.color(msg));
+    }
+
+    /** 未指定长度时的默认位数 */
+    private int defaultRandomLength() {
+        return PasswordGen.clampLength(plugin.getMessages().randomPwDefaultLength());
+    }
+
     private boolean cmdSetPw(CommandSender sender, String[] args) {
         // setpw 与 resetpw 同义，但强制要求提供密码
         if (!sender.hasPermission("accesscard.resetpw")) {
@@ -281,7 +365,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         }
         Door door = plugin.getDoorManager().get(args[1]);
         if (door == null) {
-            plugin.getMessages().send(sender, "door.not-found", "{door}", args[1]);
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[1]);
             return true;
         }
         if (door.isCard()) {
@@ -309,7 +393,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         String action = args[1].toLowerCase(Locale.ROOT);
         Door door = plugin.getDoorManager().get(args[2]);
         if (door == null) {
-            plugin.getMessages().send(sender, "door.not-found", "{door}", args[2]);
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[2]);
             return true;
         }
 
@@ -380,7 +464,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         }
         Door door = plugin.getDoorManager().get(args[1]);
         if (door == null) {
-            plugin.getMessages().send(sender, "door.not-found", "{door}", args[1]);
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[1]);
             return true;
         }
         plugin.getDoorManager().unregister(args[1]);
@@ -427,7 +511,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         }
         Door door = plugin.getDoorManager().get(args[1]);
         if (door == null) {
-            plugin.getMessages().send(sender, "door.not-found", "{door}", args[1]);
+            plugin.getMessages().send(sender, "door-not-found", "{door}", args[1]);
             return true;
         }
         DoorService svc = plugin.getDoorService();
@@ -555,7 +639,7 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
         List<String> out = new ArrayList<>();
         if (args.length == 1) {
             return filter(Arrays.asList("help", "create", "bind", "open", "resetpw", "setpw",
-                    "power", "remove", "list", "info", "reload", "selftest"), args[0]);
+                    "randompw", "power", "remove", "list", "info", "reload", "selftest"), args[0]);
         }
 
         String sub = args[0].toLowerCase(Locale.ROOT);
@@ -569,11 +653,16 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
             case "bind":
             case "resetpw":
             case "setpw":
+            case "randompw":
+            case "random":
             case "remove":
             case "delete":
             case "info":
                 if (args.length == 2) return filter(doorIds(), args[1]);
                 if (sub.equals("setpw") && args.length == 3) return List.of("<新密码>");
+                if ((sub.equals("randompw") || sub.equals("random")) && args.length == 3) {
+                    return filter(Arrays.asList("3", "4", "5", "6"), args[2]);
+                }
                 break;
             case "open":
                 if (args.length == 2) return filter(doorIds(), args[1]);

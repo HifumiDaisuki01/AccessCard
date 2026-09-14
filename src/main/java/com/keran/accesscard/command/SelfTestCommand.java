@@ -13,6 +13,7 @@ import com.keran.accesscard.door.Door;
 import com.keran.accesscard.door.DoorService;
 import com.keran.accesscard.listener.CardInteractListener;
 import com.keran.accesscard.util.CardNameParser;
+import com.keran.accesscard.util.PasswordGen;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -190,13 +191,166 @@ public class SelfTestCommand {
             expect("物品类型未改变", item.getType() == Material.PAPER, item.getType().name());
         }
 
-        /* ---------- 10. 配置完整性 ---------- */
+        /* ---------- 10. 随机密码与密码位（密室逃脱） ---------- */
+        section(sender, "随机密码与按位读取");
+
+        String pw4 = PasswordGen.randomDigits(4);
+        expect("4位随机密码长度正确", pw4.length() == 4, pw4);
+        expect("4位随机密码全为数字", PasswordGen.isNumeric(pw4), pw4);
+
+        String pw8 = PasswordGen.randomDigits(8);
+        expect("8位随机密码长度正确", pw8.length() == 8, pw8);
+        boolean allNumeric = true;
+        for (int i = 0; i < pw8.length(); i++) {
+            char c = pw8.charAt(i);
+            if (c < '0' || c > '9') allNumeric = false;
+        }
+        expect("8位随机密码逐位均为数字", allNumeric, pw8);
+
+        expect("长度下限被约束到1", PasswordGen.randomDigits(0).length() == 1,
+                String.valueOf(PasswordGen.randomDigits(0).length()));
+        expect("长度上限被约束到32", PasswordGen.randomDigits(999).length() == 32,
+                String.valueOf(PasswordGen.randomDigits(999).length()));
+
+        // 随机性抽检：连生成 200 次 4 位密码，不应全部相同
+        java.util.Set<String> uniq = new java.util.HashSet<>();
+        for (int i = 0; i < 200; i++) uniq.add(PasswordGen.randomDigits(4));
+        expect("随机性抽检(200次4位不相同)", uniq.size() > 100, "unique=" + uniq.size());
+
+        // 按位读取
+        String fixed = "0421";
+        expect("第1位 = 0（允许前导零）", PasswordGen.digitAt(fixed, 1).equals("0"),
+                PasswordGen.digitAt(fixed, 1));
+        expect("第2位 = 4", PasswordGen.digitAt(fixed, 2).equals("4"), PasswordGen.digitAt(fixed, 2));
+        expect("第4位 = 1", PasswordGen.digitAt(fixed, 4).equals("1"), PasswordGen.digitAt(fixed, 4));
+        expect("越界(第5位)返回空串", PasswordGen.digitAt(fixed, 5).isEmpty(),
+                "[" + PasswordGen.digitAt(fixed, 5) + "]");
+        expect("越界(第0位)返回空串", PasswordGen.digitAt(fixed, 0).isEmpty(),
+                "[" + PasswordGen.digitAt(fixed, 0) + "]");
+        expect("负数位返回空串", PasswordGen.digitAt(fixed, -1).isEmpty(),
+                "[" + PasswordGen.digitAt(fixed, -1) + "]");
+        expect("最后一位 = 1", PasswordGen.lastDigit(fixed).equals("1"), PasswordGen.lastDigit(fixed));
+        expect("空密码取位返回空串", PasswordGen.digitAt("", 1).isEmpty(), "");
+        expect("null密码取位不抛异常", PasswordGen.digitAt(null, 1).isEmpty(), "");
+
+        expect("纯数字判定: 0421", PasswordGen.isNumeric("0421"), "");
+        expect("纯数字判定: 空串为false", !PasswordGen.isNumeric(""), "");
+        expect("纯数字判定: 12a4为false", !PasswordGen.isNumeric("12a4"), "");
+        expect("纯数字判定: null为false", !PasswordGen.isNumeric(null), "");
+
+        /* ---------- 11. 配置完整性 ---------- */
         section(sender, "配置文件");
         expect("config 含 defaults", plugin.getConfig().isConfigurationSection("defaults"), "");
         expect("config 含 messages", plugin.getConfig().isConfigurationSection("messages"), "");
         expect("config 含 help 列表", !plugin.getConfig().getStringList("messages.help").isEmpty(), "");
+        expect("config 含 random-password", plugin.getConfig().isConfigurationSection("random-password"), "");
+        expect("config 含 password-placeholder",
+                plugin.getConfig().isConfigurationSection("password-placeholder"), "");
+        expect("randompw 用法提示存在",
+                !plugin.getMessages().get("usage.randompw").isEmpty(), "");
+        expect("randompw 成功提示存在",
+                !plugin.getMessages().get("randompw.success").isEmpty(), "");
         expect("门禁已加载", plugin.getDoorManager() != null, "");
         expect("doors.yml 存在", new java.io.File(plugin.getDataFolder(), "doors.yml").exists(), "");
+
+        /* ---------- 12. 消息键完整性 ---------- */
+        // 代码里引用的每个消息键都必须在 config.yml 里真实存在，
+        // 否则插件会「静默不提示」——这类 bug 极难发现。
+        section(sender, "消息键完整性");
+        expect("door-not-found 存在", !plugin.getMessages().get("door-not-found").isEmpty(), "");
+        expect("door-not-found 含占位符",
+                plugin.getMessages().get("door-not-found", "{door}", "X").contains("X"), "");
+        expect("no-permission 存在", !plugin.getMessages().get("no-permission").isEmpty(), "");
+        expect("player-only 存在", !plugin.getMessages().get("player-only").isEmpty(), "");
+        expect("player-not-found 存在", !plugin.getMessages().get("player-not-found").isEmpty(), "");
+        expect("unknown-subcommand 存在", !plugin.getMessages().get("unknown-subcommand").isEmpty(), "");
+        expect("usage.create 存在", !plugin.getMessages().get("usage.create").isEmpty(), "");
+        expect("usage.bind 存在", !plugin.getMessages().get("usage.bind").isEmpty(), "");
+        expect("usage.open 存在", !plugin.getMessages().get("usage.open").isEmpty(), "");
+        expect("usage.resetpw 存在", !plugin.getMessages().get("usage.resetpw").isEmpty(), "");
+        expect("usage.randompw 存在", !plugin.getMessages().get("usage.randompw").isEmpty(), "");
+        expect("usage.setpw 存在", !plugin.getMessages().get("usage.setpw").isEmpty(), "");
+        expect("usage.power 存在", !plugin.getMessages().get("usage.power").isEmpty(), "");
+        expect("usage.remove 存在", !plugin.getMessages().get("usage.remove").isEmpty(), "");
+        expect("usage.info 存在", !plugin.getMessages().get("usage.info").isEmpty(), "");
+        expect("create.success-pw 存在", !plugin.getMessages().get("create.success-pw").isEmpty(), "");
+        expect("create.success-card 存在", !plugin.getMessages().get("create.success-card").isEmpty(), "");
+        expect("create.bad-type 存在", !plugin.getMessages().get("create.bad-type").isEmpty(), "");
+        expect("create.bad-id 存在", !plugin.getMessages().get("create.bad-id").isEmpty(), "");
+        expect("create.exists 存在", !plugin.getMessages().get("create.exists").isEmpty(), "");
+        expect("create.next-tip 存在", !plugin.getMessages().get("create.next-tip").isEmpty(), "");
+        expect("bind.success 存在", !plugin.getMessages().get("bind.success").isEmpty(), "");
+        expect("bind.no-target 存在", !plugin.getMessages().get("bind.no-target").isEmpty(), "");
+        expect("bind.not-button 存在", !plugin.getMessages().get("bind.not-button").isEmpty(), "");
+        expect("bind.occupied 存在", !plugin.getMessages().get("bind.occupied").isEmpty(), "");
+        expect("door.opened 存在", !plugin.getMessages().get("door.opened").isEmpty(), "");
+        expect("open.forced 存在", !plugin.getMessages().get("open.forced").isEmpty(), "");
+        expect("open.forced-console 存在", !plugin.getMessages().get("open.forced-console").isEmpty(), "");
+        expect("password.prompt 存在", !plugin.getMessages().get("password.prompt").isEmpty(), "");
+        expect("password.wrong 存在", !plugin.getMessages().get("password.wrong").isEmpty(), "");
+        expect("password.cancelled 存在", !plugin.getMessages().get("password.cancelled").isEmpty(), "");
+        expect("password.timeout 存在", !plugin.getMessages().get("password.timeout").isEmpty(), "");
+        expect("attempt.locked 存在", !plugin.getMessages().get("attempt.locked").isEmpty(), "");
+        expect("attempt.cooldown 存在", !plugin.getMessages().get("attempt.cooldown").isEmpty(), "");
+        expect("cooldown.personal 存在", !plugin.getMessages().get("cooldown.personal").isEmpty(), "");
+        expect("cooldown.global 存在", !plugin.getMessages().get("cooldown.global").isEmpty(), "");
+        expect("card.no-item 存在", !plugin.getMessages().get("card.no-item").isEmpty(), "");
+        expect("card.wrong-item 存在", !plugin.getMessages().get("card.wrong-item").isEmpty(), "");
+        expect("card.parse-failed 存在", !plugin.getMessages().get("card.parse-failed").isEmpty(), "");
+        expect("card.broken 存在", !plugin.getMessages().get("card.broken").isEmpty(), "");
+        expect("power.no-power 存在", !plugin.getMessages().get("power.no-power").isEmpty(), "");
+        expect("power.on 存在", !plugin.getMessages().get("power.on").isEmpty(), "");
+        expect("power.off 存在", !plugin.getMessages().get("power.off").isEmpty(), "");
+        expect("power.mode-on 存在", !plugin.getMessages().get("power.mode-on").isEmpty(), "");
+        expect("power.mode-off 存在", !plugin.getMessages().get("power.mode-off").isEmpty(), "");
+        expect("list.empty 存在", !plugin.getMessages().get("list.empty").isEmpty(), "");
+        expect("list.header 存在", !plugin.getMessages().get("list.header").isEmpty(), "");
+        expect("list.entry 存在", !plugin.getMessages().get("list.entry").isEmpty(), "");
+        expect("remove.success 存在", !plugin.getMessages().get("remove.success").isEmpty(), "");
+        expect("reload.success 存在", !plugin.getMessages().get("reload.success").isEmpty(), "");
+        expect("resetpw.success 存在", !plugin.getMessages().get("resetpw.success").isEmpty(), "");
+        expect("resetpw.not-password 存在", !plugin.getMessages().get("resetpw.not-password").isEmpty(), "");
+        expect("randompw.success 存在", !plugin.getMessages().get("randompw.success").isEmpty(), "");
+        expect("randompw.bad-length 存在", !plugin.getMessages().get("randompw.bad-length").isEmpty(), "");
+        expect("randompw.clamped 存在", !plugin.getMessages().get("randompw.clamped").isEmpty(), "");
+
+        // 防坑：messages 段下若存在 "xxx.yyy" 形式的字面键（含点号），
+        // YAML 会把它和嵌套段 xxx.yyy 混淆，导致取值静默失败。
+        boolean hasDottedKey = false;
+        String dottedKeyName = "";
+        org.bukkit.configuration.ConfigurationSection msgSec =
+                plugin.getConfig().getConfigurationSection("messages");
+        if (msgSec != null) {
+            for (String k : msgSec.getKeys(false)) {
+                if (k.contains(".")) {
+                    hasDottedKey = true;
+                    dottedKeyName = k;
+                    break;
+                }
+            }
+        }
+        expect("messages 下无含点号的歧义键名", !hasDottedKey,
+                "发现歧义键: " + dottedKeyName + "（请改用连字符）");
+
+        // 防坑：YAML 1.1 会把裸写的 on/off/yes/no 当成布尔值，
+        // 导致形如 messages.power.on 的取值静默失败。
+        // 这里逐个探测所有「键名可能是保留字」的消息。
+        expect("power.on 存在（需给键名加引号）",
+                !plugin.getMessages().get("power.on").isEmpty(), "");
+        expect("power.off 存在（需给键名加引号）",
+                !plugin.getMessages().get("power.off").isEmpty(), "");
+        expect("power.on 含时间占位符",
+                plugin.getMessages().get("power.on", "{time}", "T").contains("T"), "");
+        expect("power.no-power 存在",
+                !plugin.getMessages().get("power.no-power").isEmpty(), "");
+        expect("power.mode-on 存在",
+                !plugin.getMessages().get("power.mode-on").isEmpty(), "");
+        expect("power.mode-off 存在",
+                !plugin.getMessages().get("power.mode-off").isEmpty(), "");
+        expect("power.broadcast-on 存在",
+                !plugin.getMessages().get("power.broadcast-on").isEmpty(), "");
+        expect("power.broadcast-off 存在",
+                !plugin.getMessages().get("power.broadcast-off").isEmpty(), "");
 
         /* ---------- 汇总 ---------- */
         sender.sendMessage("§8§m                                                  ");
