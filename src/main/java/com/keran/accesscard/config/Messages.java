@@ -148,4 +148,24 @@ public class Messages {
     public String passwordPlaceholderMask() {
         return cfg().getString("password-placeholder.mask", "");
     }
+
+    /* ================= 前缀与提示范围 ================= */
+
+    /**
+     * 全局默认前缀，例如 {@code "[门禁]"}。
+     * 门没有单独配 prefix 时用这个；为空则不加前缀。
+     */
+    public String defaultPrefix() {
+        return cfg().getString("announce.prefix", "");
+    }
+
+    /**
+     * 某条提示的全局默认可见范围写法。
+     * 形如 {@code announce.default.opened: "nearby:15"}。
+     * 未配置时返回空串，由调用方兜底为「仅开门玩家」。
+     */
+    public String defaultAnnounce(String type) {
+        if (type == null || type.isEmpty()) return "";
+        return cfg().getString("announce.default." + type, "");
+    }
 }

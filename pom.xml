@@ -10,7 +10,7 @@
 
   <groupId>com.keran</groupId>
   <artifactId>AccessCard</artifactId>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <packaging>jar</packaging>
   <name>AccessCard</name>
   <description>门禁 / AccessCard - 密码门与门禁卡门插件</description>

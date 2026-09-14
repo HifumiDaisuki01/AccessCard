@@ -19,15 +19,17 @@
 - **尝试次数限制** — 输错 N 次锁定 M 分钟，到期自动清零重获机会
 - **供电系统（可选）** — 默认断电不可用，`/acd power on 门 300s` 临时供电
 - **门禁卡次数递减** — 自动把卡名里的 `（剩余次数：10）` 减成 `9`，颜色代码与乱码完全不动
-- **第三方插件对接** — `/acd open` 命令 + 11 个 PlaceholderAPI 占位符
-- **内置自检** — `/acd selftest` 一次性验证 45 项功能
+- **随机数字密码（密室逃脱）** — `/acd randompw` 重置为指定位数的纯数字密码，另有 3 个密码位占位符可把谜底拆成线索分发
+- **提示前缀与可见范围** — 每个门可自定义提示前缀（如 `[天穹银行]`），七类提示逐条可设为「仅自己 / 周围 N 格 / 全服」，自动多世界隔离
+- **第三方插件对接** — `/acd open` 命令 + 14 个 PlaceholderAPI 占位符
+- **内置自检** — `/acd selftest` 一次性验证 156 项功能
 - **零前置依赖** — PlaceholderAPI 与多世界插件均为可选软依赖
 
 ---
 
 ## 安装
 
-1. 下载 `AccessCard-1.0.0.jar`（或自行编译，见下方）
+1. 下载 `AccessCard-1.1.1.jar`（或自行编译，见下方）
 2. 放入服务端 `plugins/` 目录
 3. 重启服务端
 
@@ -68,6 +70,7 @@
 | `/acd bind <名称>` | 看向按钮执行，绑定门禁 |
 | `/acd open <名称> [玩家]` | 强制开门，供第三方插件调用 |
 | `/acd resetpw <名称> [新密码]` | 重置密码 |
+| `/acd randompw <名称> [长度]` | 重置为指定位数的纯数字随机密码 |
 | `/acd setpw <名称> <密码>` | 设置指定密码 |
 | `/acd power on <名称> [时长]` | 供电，如 `300s` / `5m` / `1h` |
 | `/acd power off <名称>` | 切断供电 |
@@ -76,7 +79,7 @@
 | `/acd list` | 列出全部门禁 |
 | `/acd remove <名称>` | 删除门禁 |
 | `/acd reload` | 重载配置 |
-| `/acd selftest` | 插件自检（45 项） |
+| `/acd selftest` | 插件自检（156 项） |
 
 全部子命令支持 Tab 补全。
 
@@ -253,10 +256,144 @@ no-power-commands:
 | `%acd_power_<门>%` | 供电剩余（秒），`-1` 为未启用 |
 | `%acd_ready_<门>%` | 能否开门：`true` / `false` |
 | `%acd_reason_<门>%` | 不能开门的原因 |
+| `%acd_pwd_<门>%` | 当前完整密码（pw 门） |
+| `%acd_pwd_<门>_<位序>%` | 密码第 N 位，N 从 1 开始 |
+| `%acd_pwdlen_<门>%` | 密码位数 |
+| `%acd_pwdlast_<门>%` | 密码末位 |
 
 `reason` 返回值：`ok` / `personal` / `global` / `attempt` / `power` / `offline`
 
 中文门名直接写即可，如 `%acd_ready_东大门%`。
+
+---
+
+---
+
+## 随机密码与密码位占位符
+
+为「密室逃脱」这类把密码拆成线索分发的玩法准备。
+
+### `/acd randompw`
+
+```
+/acd randompw 金库大门 4
+```
+
+把门的密码重置为 **4 位纯数字**（如 `0473`）。长度范围 1–32，越界会自动收敛并提示。
+
+- **首位可以是 0**，所以 4 位密码共 10000 种组合
+- 不填长度则用 `config.yml` 里的 `random-password.default-length`（默认 4）
+- 只对密码门有效，门禁卡门会拒绝
+
+### 密码位占位符
+
+| 占位符 | 返回 | 示例（密码 `0421`） |
+|---|---|---|
+| `%acd_pwd_<门>%` | 完整密码 | `0421` |
+| `%acd_pwd_<门>_<位序>%` | 第 N 位，**N 从 1 开始** | `%acd_pwd_金库_2%` → `4` |
+| `%acd_pwdlen_<门>%` | 密码位数 | `4` |
+| `%acd_pwdlast_<门>%` | 最后一位 | `1` |
+
+位序越界返回空串，可以拿来做「是否还有下一位」的判断。
+
+### Java API
+
+```java
+DoorService svc = ((AccessCardPlugin) Bukkit.getPluginManager().getPlugin("AccessCard")).getDoorService();
+
+String pw = svc.randomizePassword("金库", 4);   // 重置并拿到新密码，失败返回 null
+String d2 = svc.passwordDigit("金库", 2);       // 第 2 位，越界返回 ""
+int len   = svc.passwordLength("金库");         // 位数
+String all = svc.passwordOf("金库");            // 完整密码
+```
+
+### 安全提示
+
+密码占位符默认开启。不希望被读取时，把 `config.yml` 里的 `password-placeholder.enabled` 设为 `false` 整体关闭；也可以设 `mask` 为某个字符，让占位符只输出位数。
+
+另外建议 `random-password.broadcast` 保持 `false`——开启后新密码会全服广播，谜底直接泄露。
+
+---
+
+## 提示前缀与可见范围
+
+门禁分属不同「制造商」时，可以用这一节让每个门带自己的招牌语气，并控制每条提示给谁看。
+
+**两处都是可选的**：门里不写就用 `config.yml` 的全局设置，全局不写就用内置默认（前缀为空、提示仅开门玩家可见）。
+
+### 门前缀
+
+```yaml
+doors:
+  金库大门:
+    type: pw
+    password: "8888"
+    prefix: "[天穹银行]"
+```
+
+效果：`[天穹银行] 金库大门已开启`
+
+不写 `prefix` 就用全局前缀（`announce.prefix`，默认 `[门禁]`）。
+
+### 每条提示的可见范围
+
+七类提示各自可设：
+
+| 配置键 | 对应提示 |
+|---|---|
+| `opened` | 开门成功 |
+| `wrong` | 密码错误 |
+| `timeout` | 密码输入超时 |
+| `locked` | 输错次数用尽被锁定 |
+| `cooldown` | 冷却中（个人 / 全局） |
+| `noPower` | 门没电，被拒绝 |
+| `power` | 供电恢复 / 中断 |
+
+范围三种写法：
+
+| 写法 | 含义 |
+|---|---|
+| `player` | 仅开门玩家自己 |
+| `nearby:20` | 按钮 **20 格以内**的玩家（自动限定同一世界） |
+| `all` | 全服广播 |
+
+门里只写想改的那几条，剩下走全局默认：
+
+```yaml
+doors:
+  金库大门:
+    type: pw
+    password: "8888"
+    prefix: "[天穹银行]"
+    announce:
+      opened: nearby:20     # 开门提示给周围 20 格的人看
+      wrong: all            # 输错密码全服广播
+```
+
+> **范围以按钮为中心**，不是以玩家为中心。所以站在门边的队友能看到，大厅另一头的看不到。
+
+### 全局默认
+
+```yaml
+announce:
+  prefix: "[门禁]"
+  default:
+    opened: player
+    wrong: player
+    timeout: player
+    locked: player
+    cooldown: player
+    noPower: player
+    power: all
+```
+
+想让某条提示彻底不出现，把对应项写成空串 `""` 即可。
+
+`nearby` 也接受 `nearby 20`（空格分隔）和裸数字 `20`；`player` 可写 `自己`，`all` 可写 `全服`。写错不会报错，会自动退回最安全的 `player`。
+
+### 查看实际生效值
+
+`/acd info <门名>` 会列出前缀和每条提示的最终生效值。
 
 ---
 
@@ -268,7 +405,7 @@ no-power-commands:
 git clone https://github.com/HifumiDaisuki01/AccessCard.git
 cd AccessCard
 mvn package
-# 产物：target/AccessCard-1.0.0.jar
+# 产物：target/AccessCard-1.1.1.jar
 ```
 
 ### 项目结构
@@ -278,13 +415,14 @@ src/main/java/com/keran/accesscard/
 ├── AccessCardPlugin.java          主类，生命周期与会话管理
 ├── command/
 │   ├── AcdCommand.java            /acd 全部子命令与 Tab 补全
-│   └── SelfTestCommand.java       45 项自检
+│   └── SelfTestCommand.java       156 项自检
 ├── config/
 │   └── Messages.java              提示文本与全局默认值
 ├── door/
 │   ├── Door.java                  门数据模型
 │   ├── DoorManager.java           注册表、双索引、持久化
-│   └── DoorService.java           校验与开门流程
+│   ├── DoorService.java           校验与开门流程
+│   └── Notifier.java              提示分发（前缀 + 可见范围）
 ├── listener/
 │   ├── CardInteractListener.java  按钮交互分发
 │   ├── ChatInputListener.java     密码输入拦截
@@ -292,8 +430,10 @@ src/main/java/com/keran/accesscard/
 ├── hook/
 │   └── AcdPlaceholder.java        PlaceholderAPI 扩展
 └── util/
+    ├── Announce.java              可见范围解析与分发
     ├── CardNameParser.java        卡名次数解析
-    └── CommandChain.java          指令链与延迟调度
+    ├── CommandChain.java          指令链与延迟调度
+    └── PasswordGen.java           随机数字密码生成与按位读取
 ```
 
 ---
@@ -329,8 +469,20 @@ src/main/java/com/keran/accesscard/
 **Q：重启后冷却还在吗？**
 不在。冷却与供电属于运行时状态，重启清空。门的配置会持久化。
 
+**Q：想让某个门不显示提示前缀？**
+把该门的 `prefix` 写成空串 `""` 即可，不会回退到全局前缀。
+
+**Q：附近提示的距离从哪算？**
+从**门禁按钮**算起，不是从玩家算起。`nearby` 模式自动限定同一世界，不会跨世界串台。
+
 **Q：卡名解析失败了怎么办？**
 插件会提示无法识别并记录完整卡名。兜底逻辑已覆盖绝大多数格式（取最后一个连续数字），仍不匹配可提 Issue 附上卡名。
+
+---
+
+## 详细文档
+
+更完整的配置说明、示例与排错指南见 [使用文档.md](使用文档.md)。
 
 ---
 

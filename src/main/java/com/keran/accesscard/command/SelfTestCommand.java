@@ -11,7 +11,9 @@ package com.keran.accesscard.command;
 import com.keran.accesscard.AccessCardPlugin;
 import com.keran.accesscard.door.Door;
 import com.keran.accesscard.door.DoorService;
+import com.keran.accesscard.door.Notifier;
 import com.keran.accesscard.listener.CardInteractListener;
+import com.keran.accesscard.util.Announce;
 import com.keran.accesscard.util.CardNameParser;
 import com.keran.accesscard.util.PasswordGen;
 import org.bukkit.Material;
@@ -253,7 +255,60 @@ public class SelfTestCommand {
         expect("门禁已加载", plugin.getDoorManager() != null, "");
         expect("doors.yml 存在", new java.io.File(plugin.getDataFolder(), "doors.yml").exists(), "");
 
-        /* ---------- 12. 消息键完整性 ---------- */
+        /* ---------- 12. 提示范围与前缀（制造商 / 密室逃脱） ---------- */
+        section(sender, "提示前缀与可见范围");
+
+        expect("范围 player 解析", Announce.parse("player").isAll() == false
+                && !Announce.parse("player").isNearby(), "");
+        expect("范围 all 解析", Announce.parse("all").isAll(), "");
+        expect("范围 nearby:20 半径 20", Announce.parse("nearby:20").isNearby()
+                && Announce.parse("nearby:20").radius == 20,
+                String.valueOf(Announce.parse("nearby:20").radius));
+        expect("范围 nearby 20（空格写法）", Announce.parse("nearby 20").radius == 20, "");
+        expect("范围裸数字 15 当作半径", Announce.parse("15").isNearby()
+                && Announce.parse("15").radius == 15, "");
+        expect("范围大小写不敏感", Announce.parse("ALL").isAll(), "");
+        expect("范围非法值退化为 player",
+                !Announce.parse("garbage").isAll() && !Announce.parse("garbage").isNearby(), "");
+        expect("范围空值退化为 player", !Announce.parse("").isAll(), "");
+        expect("范围 null 退化为 player", !Announce.parse(null).isAll(), "");
+        expect("范围半径为 0 退化为 player", !Announce.parse("nearby:0").isNearby(), "");
+        expect("范围超大半径被限制到 512",
+                Announce.parse("nearby:99999").radius == Announce.MAX_RADIUS,
+                String.valueOf(Announce.parse("nearby:99999").radius));
+        expect("中文写法 全服 可用", Announce.parse("全服").isAll(), "");
+        expect("中文写法 自己 可用", !Announce.parse("自己").isAll(), "");
+
+        // 门前缀与 announce 覆盖
+        Door pd = new Door("__pfx__", Door.Type.PASSWORD);
+        expect("默认无前缀", pd.getPrefix().isEmpty(), pd.getPrefix());
+        pd.setPrefix("[天穹银行]");
+        expect("门前缀已设置", pd.getPrefix().equals("[天穹银行]"), pd.getPrefix());
+        expect("默认无 announce 覆盖", !pd.hasAnnounce(Notifier.OPENED), "");
+        pd.setAnnounce(Notifier.OPENED, "nearby:20");
+        expect("announce 覆盖已写入", pd.hasAnnounce(Notifier.OPENED)
+                && "nearby:20".equals(pd.getAnnounce(Notifier.OPENED)), "");
+        expect("announce 键大小写不敏感", pd.hasAnnounce("OPENED"), "");
+        pd.setAnnounce(Notifier.OPENED, "");
+        expect("announce 写空串即删除", !pd.hasAnnounce(Notifier.OPENED), "");
+
+        // 全局默认范围
+        expect("全局默认 opened 有值",
+                !plugin.getMessages().defaultAnnounce(Notifier.OPENED).isEmpty(),
+                "[" + plugin.getMessages().defaultAnnounce(Notifier.OPENED) + "]");
+        expect("全局默认 power 有值",
+                !plugin.getMessages().defaultAnnounce(Notifier.POWER).isEmpty(), "");
+        expect("全部提示类型都有全局默认值",
+                java.util.Arrays.stream(Notifier.ALL_TYPES)
+                        .allMatch(t -> !plugin.getMessages().defaultAnnounce(t).isEmpty()),
+                java.util.Arrays.toString(Notifier.ALL_TYPES));
+
+        // 前缀拼接
+        expect("空前缀不产生多余空格",
+                plugin.getNotifier().withPrefix(null, "测试")
+                        .startsWith(plugin.getMessages().defaultPrefix()), "");
+
+        /* ---------- 13. 消息键完整性 ---------- */
         // 代码里引用的每个消息键都必须在 config.yml 里真实存在，
         // 否则插件会「静默不提示」——这类 bug 极难发现。
         section(sender, "消息键完整性");

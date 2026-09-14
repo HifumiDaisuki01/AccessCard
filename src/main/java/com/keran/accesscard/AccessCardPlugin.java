@@ -12,6 +12,7 @@ import com.keran.accesscard.command.AcdCommand;
 import com.keran.accesscard.config.Messages;
 import com.keran.accesscard.door.DoorManager;
 import com.keran.accesscard.door.DoorService;
+import com.keran.accesscard.door.Notifier;
 import com.keran.accesscard.hook.AcdPlaceholder;
 import com.keran.accesscard.listener.CardInteractListener;
 import com.keran.accesscard.listener.ChatInputListener;
@@ -38,6 +39,7 @@ public class AccessCardPlugin extends JavaPlugin {
     private DoorService doorService;
     private Messages messages;
     private CommandChain commandChain;
+    private Notifier notifier;
 
     /** 正在等待输入密码的玩家：UUID -> 开门会话 */
     private final Map<UUID, PasswordSession> sessions = new ConcurrentHashMap<>();
@@ -54,6 +56,7 @@ public class AccessCardPlugin extends JavaPlugin {
         this.doorManager = new DoorManager(this);
         this.doorManager.load();
         this.doorService = new DoorService(this);
+        this.notifier = new Notifier(this);
 
         // 命令
         AcdCommand cmd = new AcdCommand(this);
@@ -123,7 +126,14 @@ public class AccessCardPlugin extends JavaPlugin {
                 if (cur == s) {
                     sessions.remove(player.getUniqueId());
                     if (player.isOnline()) {
-                        messages.send(player, "password.timeout");
+                        // 超时提示同样支持门前缀与可见范围，取不到门时退回普通消息
+                        com.keran.accesscard.door.Door d = doorManager.get(doorId);
+                        if (d != null) {
+                            notifier.send(d, player, com.keran.accesscard.door.Notifier.TIMEOUT,
+                                    "password.timeout", "{door}", d.getDisplayName());
+                        } else {
+                            messages.send(player, "password.timeout");
+                        }
                     }
                 }
             }, timeout * 20L);
@@ -166,6 +176,10 @@ public class AccessCardPlugin extends JavaPlugin {
 
     public DoorService getDoorService() {
         return doorService;
+    }
+
+    public Notifier getNotifier() {
+        return notifier;
     }
 
     public Messages getMessages() {

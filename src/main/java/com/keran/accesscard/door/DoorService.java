@@ -97,26 +97,26 @@ public class DoorService {
      * 把校验失败的结果播报给玩家。
      */
     public void notifyFailed(Player player, Door door, CheckResult cr) {
-        Messages msg = plugin.getMessages();
+        Notifier n = plugin.getNotifier();
         switch (cr.result) {
             case PERSONAL_COOLDOWN:
-                msg.send(player, "cooldown.personal",
+                n.send(door, player, Notifier.COOLDOWN, "cooldown.personal",
                         "{time}", formatSeconds(cr.remainingMs / 1000.0));
                 break;
             case GLOBAL_COOLDOWN:
-                msg.send(player, "cooldown.global",
+                n.send(door, player, Notifier.COOLDOWN, "cooldown.global",
                         "{time}", formatSeconds(cr.remainingMs / 1000.0));
                 break;
             case ATTEMPT_COOLDOWN:
-                msg.send(player, "attempt.cooldown",
+                n.send(door, player, Notifier.COOLDOWN, "attempt.cooldown",
                         "{time}", formatSeconds(cr.remainingMs / 1000.0));
                 break;
             case NO_POWER:
-                msg.send(player, "power.no-power");
+                n.send(door, player, Notifier.NO_POWER, "power.no-power");
                 runNoPowerCommands(player, door);
                 break;
             case NO_PERMISSION:
-                msg.send(player, "no-permission");
+                plugin.getMessages().send(player, "no-permission");
                 break;
             default:
                 break;
@@ -132,7 +132,6 @@ public class DoorService {
      * @param door   门
      */
     public void onOpenSuccess(Player player, Door door) {
-        Messages msg = plugin.getMessages();
         DoorManager dm = plugin.getDoorManager();
 
         // 应用冷却
@@ -154,9 +153,9 @@ public class DoorService {
         Map<String, String> ph = plugin.placeholders(player, door.getDisplayName());
         plugin.getCommandChain().run(door.getCommands(), player, ph);
 
-        if (player != null) {
-            msg.send(player, "door.opened", "{door}", door.getDisplayName());
-        }
+        // 开门提示：可见范围由门/全局配置决定，未配置时默认仅触发者可见
+        plugin.getNotifier().send(door, player, Notifier.OPENED, "door.opened",
+                "{door}", door.getDisplayName());
     }
 
     /**
@@ -170,7 +169,6 @@ public class DoorService {
      * 密码错误时的处理：累计次数 -> 触发惩罚/冷却。
      */
     public void onPasswordWrong(Player player, String input, Door door) {
-        Messages msg = plugin.getMessages();
         DoorManager dm = plugin.getDoorManager();
 
         int max = effectiveMaxAttempts(door);
@@ -186,9 +184,10 @@ public class DoorService {
             long cd = effectiveAttemptCooldown(door);
             dm.applyAttemptCooldown(player.getUniqueId(), door.getId(), cd);
             dm.resetAttempts(player.getUniqueId(), door.getId());
-            msg.send(player, "attempt.locked", "{time}", formatSeconds(cd));
+            plugin.getNotifier().send(door, player, Notifier.LOCKED, "attempt.locked",
+                    "{time}", formatSeconds(cd));
         } else {
-            msg.send(player, "password.wrong",
+            plugin.getNotifier().send(door, player, Notifier.WRONG, "password.wrong",
                     "{left}", String.valueOf(max - used),
                     "{used}", String.valueOf(used),
                     "{max}", String.valueOf(max));

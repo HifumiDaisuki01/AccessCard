@@ -12,6 +12,7 @@ import com.keran.accesscard.AccessCardPlugin;
 import com.keran.accesscard.door.Door;
 import com.keran.accesscard.door.DoorManager;
 import com.keran.accesscard.door.DoorService;
+import com.keran.accesscard.door.Notifier;
 import com.keran.accesscard.listener.CardInteractListener;
 import com.keran.accesscard.util.PasswordGen;
 import org.bukkit.Bukkit;
@@ -404,7 +405,8 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
                     plugin.getMessages().send(sender, "usage.power");
                     return true;
                 }
-                // 只有在门启用了电源系统时才生效；未启用的门自动启用，方便运营                door.setPowerEnabled(true);
+                // 未启用的门自动启用电源系统，方便运营直接 /acd power on
+                door.setPowerEnabled(true);
                 door.applyPower(seconds);
                 plugin.getDoorManager().save();
                 plugin.getMessages().send(sender, "power.on",
@@ -444,11 +446,13 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
     }
 
     private void broadcastPower(Door door, boolean on, long seconds) {
-        String tpl = plugin.getMessages().raw(on ? "power.broadcast-on" : "power.broadcast-off");
-        if (tpl == null || tpl.isEmpty()) return;
-        String msg = tpl.replace("{door}", door.getDisplayName())
-                .replace("{time}", DoorService.formatSeconds(seconds));
-        Bukkit.broadcastMessage(com.keran.accesscard.config.Messages.color(msg));
+        // 供电广播默认全服，门可用 announce.power 收窄为「仅附近 / 仅自己」
+        plugin.getNotifier().sendWithDefault(
+                door, null, Notifier.POWER,
+                com.keran.accesscard.util.Announce.MODE_ALL,
+                on ? "power.broadcast-on" : "power.broadcast-off",
+                "{door}", door.getDisplayName(),
+                "{time}", DoorService.formatSeconds(seconds));
     }
 
     /* ================= remove ================= */
@@ -547,6 +551,17 @@ public class AcdCommand implements CommandExecutor, TabCompleter {
                 : "就绪")));
         sender.sendMessage(com.keran.accesscard.config.Messages.color("&7指令链: &f"
                 + door.getCommands().size() + " 条"));
+
+        // 前缀与提示范围
+        String pfx = door.getPrefix().isBlank() ? "&8(用全局)" : "&f" + door.getPrefix();
+        sender.sendMessage(com.keran.accesscard.config.Messages.color("&7提示前缀: &r" + pfx));
+        StringBuilder ann = new StringBuilder();
+        for (String t : Notifier.ALL_TYPES) {
+            String eff = plugin.getNotifier().rawScope(door, t);
+            boolean own = door.hasAnnounce(t);
+            ann.append(own ? "&f" : "&8").append(t).append("=&r").append(eff).append(" ");
+        }
+        sender.sendMessage(com.keran.accesscard.config.Messages.color("&7提示范围: " + ann));
         return true;
     }
 

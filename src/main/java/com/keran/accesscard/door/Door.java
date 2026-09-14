@@ -15,7 +15,9 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 门禁数据模型。
@@ -57,6 +59,17 @@ public class Door {
     private int z;
     /** 按钮所在的面，可为 null（不校验面） */
     private BlockFace face;
+
+    /** 提示前缀，如 "[一号安保系统]"；为空时使用 config.yml 的全局前缀 */
+    private String prefix = "";
+
+    /**
+     * 各条提示的可见范围覆盖。
+     * <p>
+     * 键为提示类型（opened / wrong / locked / cooldown / power / noPower / openedCard），
+     * 值为写法字符串（player / nearby:15 / all）。未配置的类型走全局默认。
+     */
+    private final Map<String, String> announce = new HashMap<>();
 
     /* ---------------- 密码门 ---------------- */
     /** 明文密码 */
@@ -204,6 +217,15 @@ public class Door {
 
         d.powerEnabled = s.getBoolean("power.enabled", false);
 
+        d.prefix = s.getString("prefix", "");
+        ConfigurationSection ann = s.getConfigurationSection("announce");
+        if (ann != null) {
+            for (String k : ann.getKeys(false)) {
+                String v = ann.getString(k);
+                if (v != null && !v.isBlank()) d.announce.put(k.toLowerCase(), v.trim());
+            }
+        }
+
         d.commands = new ArrayList<>(s.getStringList("commands"));
         d.punishCommands = new ArrayList<>(s.getStringList("punish-commands"));
         d.noPowerCommands = new ArrayList<>(s.getStringList("no-power-commands"));
@@ -229,6 +251,14 @@ public class Door {
         s.set("attempts.cooldown", attemptCooldown);
 
         s.set("power.enabled", powerEnabled);
+
+        // 前缀为空时不写进 yml，保持文件干净
+        s.set("prefix", (prefix == null || prefix.isBlank()) ? null : prefix);
+        if (!announce.isEmpty()) {
+            for (Map.Entry<String, String> e : announce.entrySet()) {
+                s.set("announce." + e.getKey(), e.getValue());
+            }
+        }
 
         s.set("commands", commands);
         s.set("punish-commands", punishCommands);
@@ -352,6 +382,40 @@ public class Door {
 
     public void setPowerEnabled(boolean powerEnabled) {
         this.powerEnabled = powerEnabled;
+    }
+
+    /* ================= 前缀与提示范围 ================= */
+
+    public String getPrefix() {
+        return prefix == null ? "" : prefix;
+    }
+
+    public void setPrefix(String prefix) {
+        this.prefix = prefix;
+    }
+
+    /** 该门对某条提示是否有单独的可见范围覆盖 */
+    public boolean hasAnnounce(String type) {
+        return type != null && announce.containsKey(type.toLowerCase());
+    }
+
+    /** 取该门对某条提示配置的可见范围写法，未配置返回 null */
+    public String getAnnounce(String type) {
+        return type == null ? null : announce.get(type.toLowerCase());
+    }
+
+    public void setAnnounce(String type, String value) {
+        if (type == null) return;
+        String k = type.toLowerCase();
+        if (value == null || value.isBlank()) {
+            announce.remove(k);
+        } else {
+            announce.put(k, value.trim());
+        }
+    }
+
+    public Map<String, String> getAnnounceMap() {
+        return announce;
     }
 
     public List<String> getCommands() {
