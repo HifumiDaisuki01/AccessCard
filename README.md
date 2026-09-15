@@ -1,4 +1,4 @@
-# AccessCard
+# AccessKeyCard
 
 适用于 **Minecraft 1.20.1 Paper** 的门禁系统插件。
 
@@ -34,6 +34,8 @@
 3. 重启服务端
 
 首次启动会生成 `plugins/AccessCard/`，内含 `config.yml`（全局配置）与 `doors.yml`（每个门的记录）。
+
+> 注：数据目录名固定为 `AccessCard`（由插件名决定），与仓库名无关，升级时无需迁移。
 
 **环境要求**：Paper 1.20.1 + Java 17
 
@@ -402,8 +404,8 @@ announce:
 需要 **JDK 17** 与 **Maven**：
 
 ```bash
-git clone https://github.com/HifumiDaisuki01/AccessCard.git
-cd AccessCard
+git clone https://github.com/HifumiDaisuki01/AccessKeyCard.git
+cd AccessKeyCard
 mvn package
 # 产物：target/AccessCard-1.1.1.jar
 ```
